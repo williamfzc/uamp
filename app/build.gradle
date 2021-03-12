@@ -18,6 +18,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'jacoco'
 
 android {
     compileSdkVersion rootProject.compileSdkVersion
@@ -55,6 +56,20 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+        unitTests.all {
+            systemProperty "robolectric.enabledSdks", "28"
+            ignoreFailures = true
+            jacoco {
+                includeNoLocationClasses = true
+            }
+        }
+    }
 }
 
 dependencies {
@@ -74,4 +89,29 @@ dependencies {
     // Glide dependencies
     implementation "com.github.bumptech.glide:glide:$glide_version"
     kapt "com.github.bumptech.glide:compiler:$glide_version"
+
+    testImplementation "com.github.williamfzc.randunit:randunit-android:0.1.1"
+    testImplementation "junit:junit:4.12"
+    implementation "androidx.fragment:fragment-testing:1.2.4"
+}
+
+task jacocoTestReport(type: JacocoReport, dependsOn: 'testDebugUnitTest') {
+
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/classes/debug", excludes: fileFilter)
+    def kotlinTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug")
+
+    classDirectories.from = files([debugTree, kotlinTree])
+    executionData.from = fileTree(
+            dir: project.buildDir,
+            includes: [
+                    'jacoco/testDebugUnitTest.exec',
+                    'outputs/code-coverage/connected/*coverage.ec'
+            ]
+    )
 }

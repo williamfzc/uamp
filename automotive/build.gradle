@@ -18,6 +18,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'jacoco'
 
 android {
     compileSdkVersion rootProject.compileSdkVersion
@@ -43,12 +44,49 @@ android {
     }
 
     buildTypes {
+        debug {
+            testCoverageEnabled true
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+        unitTests.all {
+            systemProperty "robolectric.enabledSdks", "28"
+            ignoreFailures = true
+            jacoco {
+                includeNoLocationClasses = true
+            }
+        }
+    }
+}
+
+task jacocoTestReport(type: JacocoReport, dependsOn: 'testDebugUnitTest') {
+
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/classes/debug", excludes: fileFilter)
+    def kotlinTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug")
+
+    classDirectories.from = files([debugTree, kotlinTree])
+    executionData.from = fileTree(
+            dir: project.buildDir,
+            includes: [
+                    'jacoco/testDebugUnitTest.exec',
+                    'outputs/code-coverage/connected/*coverage.ec'
+            ]
+    )
 }
 
 dependencies {
@@ -66,6 +104,8 @@ dependencies {
     implementation "com.google.android.gms:play-services-auth:$play_services_auth_version"
 
     testImplementation "junit:junit:$junit_version"
+    testImplementation "com.github.williamfzc.randunit:randunit-android:0.1.1"
+    implementation "androidx.fragment:fragment-testing:1.2.4"
 
     androidTestImplementation "androidx.test:runner:$androidx_test_runner_version"
     androidTestImplementation "androidx.test.espresso:espresso-core:$espresso_version"
